@@ -1,0 +1,35 @@
+name: Theme lab
+on:
+  pull_request:
+    paths: ['demo/theme-lab/**', '.github/workflows/theme-lab.yml']
+  push:
+    paths: ['demo/theme-lab/**', '.github/workflows/theme-lab.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            demo/theme-lab/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: demo/theme-lab
+      - name: Reject high and critical build-tool advisories
+        run: npm audit --audit-level=high
+        working-directory: demo/theme-lab
+      - run: npm run build:check
+        working-directory: demo/theme-lab
+      - run: npm test
+        working-directory: demo/theme-lab
+      - run: npx playwright install --with-deps chromium
+        working-directory: demo/theme-lab
+      - run: npm run test:browser
+        working-directory: demo/theme-lab

@@ -1,0 +1,8 @@
+{
+  "lab": {
+    "space": {"$type": "dimension", "$value": {"value": 1, "unit": "rem"}},
+    "measure": {"$type": "dimension", "$value": {"value": 72, "unit": "rem"}},
+    "focus": {"$type": "color", "$value": {"colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1, "hex": "#000000"}},
+    "error": {"$type": "color", "$value": {"colorSpace": "srgb", "components": [0.6, 0, 0], "alpha": 1, "hex": "#990000"}}
+  }
+}

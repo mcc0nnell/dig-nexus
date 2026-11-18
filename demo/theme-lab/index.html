@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-atlas-theme="mac7">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="An offline theme portability experiment. No real conference registration.">
+<title>Theme Lab · Conference simulation</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="generated/semantic.css"><link rel="stylesheet" href="generated/themes.css"><link rel="stylesheet" href="layout.css">
+<script type="module" src="app.mjs"></script>
+</head>
+<body class="lab">
+<a class="skip" href="#main">Skip to registration simulation</a>
+<header class="lab-header"><a href="#main" class="wordmark">DIG / THEME LAB</a><span>EXPERIMENT 01 · ATLAS UI 3</span></header>
+<main id="main" tabindex="-1">
+<section class="intro" aria-labelledby="page-title"><p class="eyebrow">Three eras. One shared form.</p><h1 id="page-title">A change of atmosphere.</h1><p class="lede">Explore how authentic interface materials change the feel of the same conference registration simulation.</p>
+<div class="theme-picker"><label for="theme">Interface theme</label><select id="theme" class="atlas-retro-input"><option value="mac7">01 / Mac System 7</option><option value="frutiger-aero">02 / Frutiger Aero</option><option value="flat-2013">03 / Flat Design 2013</option></select></div>
+<p class="theme-note">Switch themes at any time. Your form stays in place.</p></section>
+<div class="workspace"><section class="atlas-retro-window" aria-labelledby="window-title"><div class="atlas-retro-window-titlebar"><h2 id="window-title" class="atlas-retro-window-title">Conference / registration simulation</h2></div><div class="form-content">
+<p class="eyebrow">SIMULATION ONLY</p><h3>Make yourself at home.</h3><p>Try a fictional place at the Interface Futures conference. No seat is reserved, no email is sent, and no payment is accepted.</p>
+<form id="registration" novalidate autocomplete="off">
+<div id="error" role="alert" hidden></div>
+<div class="field"><label for="display-name">Display name <span>(required)</span></label><input class="atlas-retro-input" id="display-name" name="display-name" required maxlength="80" autocomplete="off" aria-describedby="name-help"><p id="name-help" class="hint">Use an invented name. Please do not enter personal information.</p></div>
+<fieldset><legend>Accessibility preferences</legend><label class="consent" for="consent"><input id="consent" type="checkbox"> <span>I consent to entering a fictional accessibility request for this simulation.</span></label><p id="consent-help" class="hint">Optional. Nothing is saved or sent. Turning consent off clears the request.</p><div id="request-fields" hidden><label for="accessibility">Fictional accessibility request <span>(optional)</span></label><textarea class="atlas-retro-input" id="accessibility" rows="3" maxlength="400" disabled aria-describedby="consent-help"></textarea></div></fieldset>
+<button class="atlas-retro-button" type="submit">Simulate registration</button><p id="status" role="status" aria-live="polite">Ready to simulate. Nothing has been submitted.</p>
+</form></div></section>
+<aside aria-labelledby="about-title"><p class="eyebrow">A PORTABILITY STUDY</p><h2 id="about-title">Same structure.<br>Different character.</h2><ol><li><strong>Mac System 7</strong><span>Patterned desktop, striped chrome, tactile controls.</span></li><li><strong>Frutiger Aero</strong><span>Glass, soft reflections, rounded edges.</span></li><li><strong>Flat Design 2013</strong><span>Quiet surfaces, crisp geometry, turquoise accents.</span></li></ol><p class="privacy">Local and ephemeral. Input exists only in this open page. Reloading starts fresh.</p></aside></div>
+</main><footer>Experimental DIG Nexus theme lab · <a href="upstream/SOURCE.md">Source &amp; provenance</a> · <a href="upstream/LICENSE">MIT license</a><p>Not a real registration service.</p></footer>
+</body></html>
