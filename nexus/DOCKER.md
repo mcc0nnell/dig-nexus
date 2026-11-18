@@ -230,3 +230,8 @@ consent recheck/one-click flow is tested with synthetic data but is **not**
 launched and no scheduled marketing worker is present. See
 [ASSOCIATION-OPERATIONS.md](ASSOCIATION-OPERATIONS.md) before planning
 a real provider acceptance test.
+
+Stage 1 magic authentication additionally requires ordered migration
+`schema-014-magic-identities.sql` after 013. Follow the legacy staging-data guard
+and reviewed migration procedure in [magic recovery](MAGIC-PAYMENT-RECOVERY.md).
+All default-off deployment gates remain unchanged.

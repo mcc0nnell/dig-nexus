@@ -1,3 +1,4 @@
+import {providerFetch} from './provider-fetch.mjs';
 import {EncryptJWT, jwtDecrypt, createRemoteJWKSet, jwtVerify} from 'jose';
 import {PORTAL_CLIENT} from './portal-client.mjs';
 import {authState} from './auth-state.mjs';
@@ -49,9 +50,9 @@ export async function finishGoogleLogin(request,env,{fetcher=fetch,verifyToken}=
   const key=await secret(env),flow=await unseal(parseCookie(request,flowCookie),key);
   if(flow.state!==state||typeof flow.verifier!=='string'||typeof flow.nonce!=='string')throw Error('state mismatch');
   if(!(await authState(env,'consumeFlow',state)))throw Error('flow already used');
-  const tokenResponse=await fetcher('https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:env.GOOGLE_REDIRECT_URI,client_id:env.GOOGLE_CLIENT_ID,client_secret:env.GOOGLE_CLIENT_SECRET,code_verifier:flow.verifier}),redirect:'error'});
+  const tokenResponse=await providerFetch(fetcher,'https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:env.GOOGLE_REDIRECT_URI,client_id:env.GOOGLE_CLIENT_ID,client_secret:env.GOOGLE_CLIENT_SECRET,code_verifier:flow.verifier}),redirect:'error'},async r=>({ok:r.ok,data:r.ok?await r.json():null}));
   if(!tokenResponse.ok)throw Error('token exchange failed');
-  const data=await tokenResponse.json();
+  const data=tokenResponse.data;
   if(typeof data.id_token!=='string')throw Error('ID token missing');
   const payload=verifyToken?await verifyToken(data.id_token): (await jwtVerify(data.id_token,googleKeys,{issuer:['https://accounts.google.com','accounts.google.com'],audience:env.GOOGLE_CLIENT_ID,algorithms:['RS256'],requiredClaims:['sub','exp','iat']})).payload;
   if(!['https://accounts.google.com','accounts.google.com'].includes(payload.iss)||payload.aud!==env.GOOGLE_CLIENT_ID||payload.nonce!==flow.nonce||payload.email_verified!==true||typeof payload.sub!=='string'||!payload.sub||typeof payload.email!=='string'||!payload.email)throw Error('identity rejected');
@@ -77,7 +78,7 @@ export async function logoutGoogle(request,env){
  const origin=request.headers.get('origin');
  const target=new URL(request.url).origin;
  if(origin!==target)return new Response('Origin not allowed',{status:403,headers:{'cache-control':'no-store'}});
- try {const token=parseCookie(request,cookieName);if(token){const payload=await unseal(token,await secret(env));if(typeof payload.sid==='string')await authState(env,'revokeSession',payload.sid);}}catch{return new Response('Logout unavailable',{status:503,headers:{'cache-control':'no-store'}});}
+ try {const token=parseCookie(request,cookieName);if(token){const payload=await unseal(token,await secret(env));if(typeof payload.sid!=='string'||!await authState(env,'revokeSession',payload.sid))throw Error('revocation failed');}}catch{return new Response('Logout unavailable',{status:503,headers:{'cache-control':'no-store','set-cookie':clear(cookieName)}});}
  return response('/portal',{'set-cookie':clear(cookieName)});
 }
 export function portalPage(){
@@ -91,8 +92,9 @@ export function portalPage(){
   <p>One place to see your membership status and take the next step.</p></div>
  <section class="panel" aria-labelledby="account-heading">
   <h2 id="account-heading">Your account</h2>
-  <p id="member-status" role="status" aria-live="polite" aria-atomic="true">Checking your membership status…</p>
+  <p id="member-status" role="status" aria-live="polite" aria-atomic="true">Sign in to view your membership status.</p>
   <p id="sign-in"><a class="action" href="/auth/google/start">Continue with Google</a></p>
+  <noscript><p>JavaScript is required to display your membership status. You may still start Google sign-in here.</p></noscript>
   <form id="sign-out" action="/auth/logout" method="post" hidden><button class="secondary" type="submit">Sign out</button></form>
  </section>
  <section id="join-section" class="panel" aria-labelledby="join-heading" hidden>

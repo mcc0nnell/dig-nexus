@@ -15,6 +15,7 @@ on:
       - 'nexus/schema-010-jobs.sql'
       - 'nexus/schema-012-constituents.sql'
       - 'nexus/schema-013-paid-inventory.sql'
+      - 'nexus/schema-014-magic-identities.sql'
       - 'nexus/tests/paid-inventory-*.sql'
       - 'nexus/tests/paid-inventory-*.sh'
       - 'nexus/jobs/**'
@@ -39,6 +40,7 @@ on:
       - 'nexus/schema-010-jobs.sql'
       - 'nexus/schema-012-constituents.sql'
       - 'nexus/schema-013-paid-inventory.sql'
+      - 'nexus/schema-014-magic-identities.sql'
       - 'nexus/tests/paid-inventory-*.sql'
       - 'nexus/tests/paid-inventory-*.sh'
       - 'nexus/jobs/**'
@@ -61,7 +63,7 @@ jobs:
           node-version: '22'
       - run: npm ci --ignore-scripts
       - name: Test runtime and trusted proxy
-        run: node --test nexus/cloud-run/*.test.mjs nexus/docker/*.test.mjs nexus/jobs/*.test.mjs nexus/api/association-ops.test.mjs nexus/api/newsletter-unsubscribe.test.mjs newsletter/*.test.mjs release/*.test.mjs
+        run: node --test nexus/cloud-run/*.test.mjs nexus/docker/*.test.mjs nexus/jobs/*.test.mjs nexus/api/association-ops.test.mjs nexus/api/newsletter-unsubscribe.test.mjs nexus/api/auth-hardening.test.mjs nexus/api/atlas-product.test.mjs newsletter/*.test.mjs release/*.test.mjs
       - name: Start localhost-only Compose stack with synthetic secrets
         run: |
           set -euo pipefail
@@ -164,7 +166,7 @@ jobs:
             nexus/schema-007-attendee.sql nexus/schema-008-cloud-run-state.sql \
             nexus/schema-009-ticketing.sql nexus/schema-010-jobs.sql \
             nexus/schema-011-magic-links.sql nexus/schema-012-constituents.sql \
-            nexus/schema-013-paid-inventory.sql; do
+            nexus/schema-013-paid-inventory.sql nexus/schema-014-magic-identities.sql; do
             psql -v ON_ERROR_STOP=1 -f "$file" > /dev/null
           done
       - name: Apply newsletter schema and verify subscriber separation

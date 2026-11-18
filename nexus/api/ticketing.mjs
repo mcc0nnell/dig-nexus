@@ -1,3 +1,4 @@
+import {statusPage} from './status-page.mjs';
 import QRCode from 'qrcode';
 import {checkinPage,checkinClient} from './checkin-page.mjs';
 import {sessionIdentity} from './google-auth.mjs';
@@ -10,11 +11,22 @@ const allowed=id=>id?.verified===true&&id.emailVerified===true&&typeof id.issuer
 const slug=s=>typeof s==='string'&&s.length<=80&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s);
 const enabled=(env,key)=>env[key]===true||env[key]==='true';
 export async function ticketingRequest(request,env,pathname){
- if(pathname==='/checkin-client.mjs')return request.method==='GET'?checkinClient():json({error:'method_not_allowed'},405);
+ const staffScript=pathname==='/checkin-client.mjs';
  const staffShell=pathname.match(/^\/checkin\/([^/]+)\/?$/);
- if(staffShell){if(request.method!=='GET')return json({error:'method_not_allowed'},405);
-  if(!slug(staffShell[1]))return json({error:'not_found'},404);
-  return checkinPage(staffShell[1]);}
+ if(staffScript||staffShell){
+  const fail=(title,message,status)=>staffScript?json({error:status===503?'checkin_unavailable':status===401?'unauthorized':'method_not_allowed'},status):statusPage(title,message,status,status===405?{allow:'GET'}:{});
+  if(request.method!=='GET')return fail('Method not allowed','Open the check-in link in your browser.',405);
+  if(staffShell&&!slug(staffShell[1]))return statusPage('Check-in not found','Check the event link with the conference organizer.',404);
+  if(!enabled(env,'NTC_TICKETING_ENABLED')||!enabled(env,'NTC_CHECKIN_ENABLED'))
+   return fail('Check-in unavailable','Staff check-in is not enabled. Contact the event organizer for assistance.',503);
+  let identity;
+  try{identity=await (env.verifyTicketingIdentity??((r)=>sessionIdentity(r,env)))(request,env);}
+  catch{return fail('Sign-in required','Sign in with your staff Google account through the member portal, then reopen this link.',401);}
+  if(!allowed(identity)||identity.issuer!=='https://accounts.google.com')
+   return fail('Sign-in required','Sign in with your staff Google account through the member portal, then reopen this link.',401);
+  // No attendee data is rendered. The check-in API verifies event staff permissions in SQL.
+  return staffScript?checkinClient():checkinPage(staffShell[1]);
+ }
 
  const hook=pathname==='/api/zeffy/webhook';
  const route=pathname.match(/^\/api\/ticketing\/([^/]+)\/(payment-link|issue|checkin|recover)\/?$/);
@@ -47,7 +59,7 @@ export async function ticketingRequest(request,env,pathname){
     result=await db.review(payment);
    }
    if(result.status==='paid'&&typeof db.resolveReview==='function')await db.resolveReview(payment);
-   return json({acknowledged:true,status:result.status});
+   return json({acknowledged:true});
   }catch{return json({error:'webhook_unavailable'},503);}
  }
  let id;

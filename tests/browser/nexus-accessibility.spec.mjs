@@ -68,12 +68,13 @@ test('portal supports keyboard access, status announcements and explicit enrollm
  await expect(page.locator('#join-section')).toBeHidden();
 });
 
-test('unconfigured staff QR check-in cannot report a successful scan',async({page})=>{
- await page.goto(origin+'/checkin/ntc-2027');
- await page.locator('#credential').fill('A'.repeat(43));
- await page.getByRole('button',{name:'Check in attendee'}).click();
- await expect(page.getByRole('status')).toContainText('Check-in denied');
- await expect(page.getByRole('status')).not.toContainText('Checked in:');
+test('unconfigured staff QR check-in has an accessible disabled page and no scan controls',async({page})=>{
+ const response=await page.goto(origin+'/checkin/ntc-2027');
+ expect(response.status()).toBe(503);
+ await expect(page.getByRole('heading',{name:'Check-in unavailable'})).toBeVisible();
+ await expect(page.getByText('Staff check-in is not enabled.')).toBeVisible();
+ await expect(page.locator('#credential')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Check in attendee'})).toHaveCount(0);
 });
 
 test('association workspace loads private synthetic records without interpreting member HTML',async({page})=>{

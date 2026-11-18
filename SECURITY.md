@@ -18,3 +18,14 @@ Report suspected issues privately to DIG website administrators through an estab
 - Maintain patched dependencies and perform staging tests before updating deployed tooling or images.
 
 The legacy `cf/membership-site` material and any WordPress `/magic` integration require independent configuration and security review if deployed; they are not substitutes for the current Nexus identity and authorization controls.
+
+## Unsubscribe URLs and logs
+
+Newsletter unsubscribe URLs contain bearer credentials required for RFC 8058
+one-click POSTs. Treat the entire URL as sensitive, including its path and query.
+The checked-in Caddyfile does not enable HTTP access logging. Keep access logging,
+request tracing and URL analytics disabled for credential-bearing routes at every
+proxy, CDN and application layer; do not add raw URLs, tokens or request bodies to
+error/debug logs. Review any deployment-specific logging before enabling delivery.
+Do not remove tokens or require interactive sign-in for one-click unsubscribe.
+These precautions do not authorize newsletter bulk sending, which remains disabled.

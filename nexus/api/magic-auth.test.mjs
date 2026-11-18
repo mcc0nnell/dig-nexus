@@ -7,11 +7,12 @@ import {magicPage,magicClient} from './magic-page.mjs';
 const origin='https://nexus.example.invalid';
 const key='magic-only-configuration-secret-value-with-great-entropy-test';
 function makeFixture(){
- let lastLink=null;const store=new Map(),sessions=new Set(),mail=[];
- const env={MAGIC_LINK_ENABLED:true,MAGIC_LINK_EMAIL_ENABLED:true,MAGIC_LINK_SESSION_SECRET:key,
+ let lastLink=null;const store=new Map(),sessions=new Set(),mail=[],identities=new Map();
+ const env={PUBLIC_ORIGIN:origin,MAGIC_LINK_ENABLED:true,MAGIC_LINK_EMAIL_ENABLED:true,MAGIC_LINK_SESSION_SECRET:key,
  magicRateLimiter:{limit:async()=>({success:true})},
- magicDb:{issue:async(hash,email,event)=>{store.clear();store.set(hash,{email,eventSlug:event});return true;},
-  consume:async hash=>{const result=store.get(hash);store.delete(hash);return result||null;},
+ magicDb:{issue:async(hash,email,event)=>{for(const [key,value] of store)if(value.email===email)store.delete(key);store.set(hash,{email,eventSlug:event});return true;},
+  available:async hash=>store.has(hash),
+  consume:async hash=>{const result=store.get(hash);store.delete(hash);if(result){if(!identities.has(result.email))identities.set(result.email,'magic:'+crypto.randomUUID());result.subject=identities.get(result.email);}return result||null;},
   revoke:async hash=>{store.delete(hash);return true;}},
  magicMailer:async data=>{mail.push(data);lastLink=data.token;},
  authStateStore:async(action,sid)=>{
@@ -73,20 +74,76 @@ test('new request replaces old token and origin/IP rate limits fail closed',asyn
  const blocked=await worker.fetch(req('/api/auth/magic/request',{email:'another@example.invalid',event:'ntc-2027'}),throttle);
  assert.equal(blocked.status,202);assert.equal(mail.length,2);
 });
+test('session-store failure before consume preserves the same one-use link for retry',async()=>{
+ const {env,req,getToken,store}=makeFixture();
+ assert.equal((await worker.fetch(req('/api/auth/magic/request',{email:'retry@example.invalid',event:'ntc-2027'}),env)).status,202);
+ const token=getToken(),realStore=env.authStateStore;
+ env.authStateStore=async(action,...args)=>action==='createSession'?false:realStore(action,...args);
+ const failure=await worker.fetch(req('/api/auth/magic/redeem',{token}),env);
+ assert.equal(failure.status,503);
+ assert.equal(store.size,1,'token must remain valid after session-store failure');
+ env.authStateStore=realStore;
+ const recovery=await worker.fetch(req('/api/auth/magic/redeem',{token}),env);
+ assert.equal(recovery.status,200);
+ assert.equal(store.size,0);
+ assert.equal((await worker.fetch(req('/api/auth/magic/redeem',{token}),env)).status,401);
+});
 test('mailer sends no marketing consent and handles provider failure',async()=>{
  let msg;
- const result=await sendMagicEmail({MAILERSEND_API_TOKEN:'local-test',MAILERSEND_FROM_EMAIL:'events@example.invalid'},
+ const result=await sendMagicEmail({PUBLIC_ORIGIN:origin,MAILERSEND_API_TOKEN:'local-test',MAILERSEND_FROM_EMAIL:'events@example.invalid'},
   {to:'receiver@example.invalid',token:'t'.repeat(43),event:'ntc-2027',origin},
   async(_url,options)=>{msg=JSON.parse(options.body);return new Response(null,{status:202});});
  assert.equal(result,undefined);assert.deepEqual(msg.tags,['dig-nexus-magic-link']);
  assert.deepEqual(msg.settings,{track_clicks:false,track_opens:false,track_content:false});
  assert.match(msg.text,/#token=/);
  assert.equal('unsubscribeUrl' in msg,false);
- await assert.rejects(sendMagicEmail({MAILERSEND_API_TOKEN:'x',MAILERSEND_FROM_EMAIL:'events@example.invalid'},
+ await assert.rejects(sendMagicEmail({PUBLIC_ORIGIN:origin,MAILERSEND_API_TOKEN:'x',MAILERSEND_FROM_EMAIL:'events@example.invalid'},
   {to:'receiver@example.invalid',token:'x'.repeat(43),event:'ntc-2027',origin},async()=>new Response(null,{status:429})));
 });
 test('email login page has explicit consent to redeem, no HTML interpolation or third-party scripts',async()=>{
  const html=await magicPage().text();assert.match(html,/Complete sign-in/);assert.match(html,/Sign in by email/);
  assert.equal(magicPage().headers.get('referrer-policy'),'no-referrer');const js=await magicClient().text();assert.doesNotThrow(()=>new vm.Script(js));
  assert.doesNotMatch(js,/innerHTML|document\.write/);
+});
+
+test('stable subject survives rotation, repeated requests and email isolation; explicit invalid Google rejects',async()=>{
+ const {env,req,getToken}=makeFixture();
+ const login=async email=>{
+  await worker.fetch(req('/api/auth/magic/request',{email,event:'ntc-2027'}),env);
+  const r=await worker.fetch(req('/api/auth/magic/redeem',{token:getToken()}),env);
+  assert.equal(r.status,200);
+  const cookie=r.headers.get('set-cookie').split(';')[0];
+  return {cookie,actor:await attendeeIdentity(new Request(origin,{headers:{cookie}}),env)};
+ };
+ const a=await login('a@example.invalid');env.MAGIC_LINK_SESSION_SECRET=key+'rotated';
+ const b=await login('a@example.invalid');assert.equal(a.actor.subject,b.actor.subject);
+ assert.notEqual((await login('b@example.invalid')).actor.subject,a.actor.subject);
+ for(const google of ['bad',''])await assert.rejects(attendeeIdentity(new Request(origin,{headers:{cookie:b.cookie+'; __Host-dig_nexus_session='+google}}),env));
+ const r=await worker.fetch(req('/api/auth/magic/logout',{}, {headers:{cookie:a.cookie}}),env);
+ assert.equal(r.status,503);assert.match(r.headers.get('set-cookie'),/Max-Age=0/);
+});
+test('redemption preflights encryption and distinguishes storage failures from invalid tokens',async()=>{
+ const {env,req,getToken,store}=makeFixture();
+ await worker.fetch(req('/api/auth/magic/request',{email:'a@example.invalid',event:'ntc-2027'}),env);
+ const redeem=()=>req('/api/auth/magic/redeem',{token:getToken()});
+ assert.equal((await worker.fetch(redeem(),{...env,MAGIC_LINK_SESSION_SECRET:''})).status,503);assert.equal(store.size,1);
+ assert.equal((await worker.fetch(redeem(),{...env,magicDb:{...env.magicDb,consume:async()=>{throw Error('private storage detail');}}})).status,503);
+ assert.equal(store.size,1);
+ for(const fail of [async()=>false,async()=>{throw Error('private store detail');}]){
+  await worker.fetch(req('/api/auth/magic/request',{email:'a@example.invalid',event:'ntc-2027'}),env);
+  const r=await worker.fetch(redeem(),{...env,authStateStore:fail});
+  assert.equal(store.size,1,'session-store failures must not burn the token');
+  assert.equal(r.status,503);assert.equal((await r.json()).requestNewLink,true);
+  assert.equal((await worker.fetch(redeem(),env)).status,200,'same token is retryable after session-store recovery');
+  assert.equal(store.size,0);
+ }
+ assert.equal((await worker.fetch(redeem(),env)).status,401);
+});
+test('magic origin is configured and validated before issuing or sending',async()=>{
+ const {env,req,mail,store}=makeFixture();
+ for(const PUBLIC_ORIGIN of [undefined,'http://nexus.example.invalid',origin+'/',origin+'?x',origin+'#x','https://user@nexus.example.invalid']){
+  assert.equal((await worker.fetch(req('/api/auth/magic/request',{email:'a@example.invalid',event:'ntc-2027'}),{...env,PUBLIC_ORIGIN})).status,503);
+ }
+ const forged=new Request('https://evil.invalid/api/auth/magic/request',{method:'POST',headers:{origin:'https://evil.invalid','content-type':'application/json'},body:JSON.stringify({email:'a@example.invalid',event:'ntc-2027'})});
+ assert.equal((await worker.fetch(forged,env)).status,403);assert.equal(mail.length,0);assert.equal(store.size,0);
 });

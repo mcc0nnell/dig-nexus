@@ -4,7 +4,7 @@ import {sendNewsletter} from './mailersend.mjs';
 // enable ALL gates, supply a deliberately limited DB role, and invoke ONE step.
 const gated=env=>['DIG_NEWSLETTER_SEND_ENABLED','DIG_NEWSLETTER_MARKETING_READY',
  'DIG_NEWSLETTER_ONE_CLICK_VERIFIED','NEWSLETTER_UNSUBSCRIBE_ENABLED',
- 'DIG_NEWSLETTER_DISPATCH_ENABLED'].every(key=>env?.[key]==='true');
+ 'DIG_NEWSLETTER_DISPATCH_ENABLED'].every(key=>env?.[key]===true||env?.[key]==='true');
 
 export function createNewsletterDispatchDb(client){
  if(typeof client?.query!=='function')throw TypeError('PostgreSQL adapter required');

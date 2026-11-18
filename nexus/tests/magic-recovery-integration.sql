@@ -7,12 +7,20 @@ VALUES('b1000000-0000-4000-8000-000000000001','magic-test','Magic Integration Ev
  'b2000000-0000-4000-8000-000000000002','b3000000-0000-4000-8000-000000000003',
  'https://www.zeffy.com/en-US/ticketing/synthetic-magic');
 DO $$
-DECLARE v jsonb;
+DECLARE v jsonb; original_subject text;
 BEGIN
  PERFORM nexus_magic_issue(repeat('a',64),' Magic@Example.Invalid ','magic-test');
+ IF nexus_magic_available(repeat('a',64)) IS DISTINCT FROM true THEN RAISE EXCEPTION 'valid token not available'; END IF;
  v=nexus_magic_consume(repeat('a',64));
+ IF nexus_magic_available(repeat('a',64)) IS DISTINCT FROM false THEN RAISE EXCEPTION 'consumed token remains available'; END IF;
  IF v->>'email'<>'magic@example.invalid' OR v->>'eventSlug'<>'magic-test'
  THEN RAISE EXCEPTION 'email login token not consumed'; END IF;
+ original_subject=v->>'subject';
+ IF original_subject IS NULL THEN RAISE EXCEPTION 'missing stable identity'; END IF;
+ PERFORM nexus_magic_issue(repeat('d',64),'magic@example.invalid','magic-test');
+ IF nexus_magic_consume(repeat('d',64))->>'subject' IS DISTINCT FROM original_subject THEN RAISE EXCEPTION 'identity changed'; END IF;
+ PERFORM nexus_magic_issue(repeat('e',64),'other@example.invalid','magic-test');
+ IF nexus_magic_consume(repeat('e',64))->>'subject' = original_subject THEN RAISE EXCEPTION 'cross-email attribution'; END IF;
  IF nexus_magic_consume(repeat('a',64)) IS NOT NULL THEN RAISE EXCEPTION 'magic replay accepted'; END IF;
  PERFORM nexus_magic_issue(repeat('b',64),'magic@example.invalid','magic-test');
  PERFORM nexus_magic_issue(repeat('c',64),'magic@example.invalid','magic-test');

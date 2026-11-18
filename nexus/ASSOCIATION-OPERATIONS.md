@@ -46,7 +46,7 @@ Every route requires staff verification, a configured rate limiter, server-side 
 Only on a fresh, isolated PostgreSQL 17 or Neon staging branch:
 
 ```text
-nexus/schema.sql and migrations 002–013
+nexus/schema.sql and migrations 002–014
 newsletter/schema.sql
 newsletter/schema-002-unsubscribe.sql
 newsletter/schema-003-operations.sql
@@ -121,7 +121,7 @@ compliance, and unsubscribed-recipient handling. Raw token URLs should not
 be captured in proxy request logs. Run synthetic, sandboxed tests and
 confirm an end-to-end unsubscribe before enabling a single live send.
 
-To test against disposable PostgreSQL 17 apply ordered Nexus 001–013,
+To test against disposable PostgreSQL 17 apply ordered Nexus 001–014,
 newsletter 001–004, then
 `nexus/tests/newsletter-dispatch-integration.sql`. It rolls back all
 synthetic subscriber and campaign records.
