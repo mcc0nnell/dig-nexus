@@ -96,7 +96,7 @@ test('Zeffy webhook fails closed for unsigned payloads and re-fetches signed pay
   zeffyFetch:async()=>new Response(JSON.stringify(payment),{status:200})};
  assert.equal((await worker.fetch(new Request(url,{method:'POST',body,headers:{'content-type':'application/json'}}),setup)).status,401);
  const signed=()=>new Request(url,{method:'POST',body,headers:{'content-type':'application/json','zeffy-signature':signature}});
- const r=await worker.fetch(signed(),setup);assert.equal(r.status,200);assert.equal((await r.json()).status,'paid');
+ const r=await worker.fetch(signed(),setup);assert.equal(r.status,200);assert.deepEqual(await r.json(),{acknowledged:true});
  const offline={...setup,zeffyFetch:async()=>new Response(JSON.stringify({...payment,type:'manual'}),{status:200})};
  assert.equal((await worker.fetch(signed(),offline)).status,422);
 });
@@ -111,7 +111,7 @@ test('verified but unmatched webhook payment is acknowledged for manual review w
   ticketingDb:{...env.ticketingDb,reconcile:async()=>{throw notFound;},review:async(p)=>{held=p;return {status:'manual_review'};}}};
  const r=await worker.fetch(new Request(origin+'/api/zeffy/webhook',{method:'POST',body,
   headers:{'content-type':'application/json','zeffy-signature':signature}}),config);
- assert.equal(r.status,200);assert.equal((await r.json()).status,'manual_review');assert.equal(held.id,uuid);
+ assert.equal(r.status,200);assert.deepEqual(await r.json(),{acknowledged:true});assert.equal(held.id,uuid);
 });
 test('ticket DB query bindings never accept client-selected identifiers',async()=>{
  const queries=[];const db=createTicketingDb({query:async(sql,parameters)=>{

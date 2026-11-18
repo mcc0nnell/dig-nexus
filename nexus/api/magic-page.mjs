@@ -18,6 +18,6 @@ document.getElementById('request').addEventListener('submit',async e=>{
 });
 document.getElementById('complete').addEventListener('click',async()=>{
  status.textContent='Verifying…';
- try{const r=await post({token},'/api/auth/magic/redeem');if(!r.ok)throw Error();location.replace(destination);}
- catch{status.textContent='This sign-in link has expired or was already used. Request another link.';}
+ try{const r=await post({token},'/api/auth/magic/redeem');if(!r.ok){status.textContent=r.status===401?'This sign-in link has expired or was already used. Request another link.':'Sign-in could not be completed. Request a new link when service is available.';return;}location.replace(destination);}
+ catch{status.textContent='Sign-in could not be confirmed. Request a new link when service is available.';}
 });`,{headers:{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer'}});}

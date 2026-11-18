@@ -60,7 +60,7 @@ available for staff and Google-registered participants.
 ## Configuration and verification
 
 Migration order: `nexus/schema.sql`, schemas 002–009,
-`nexus/schema-010-jobs.sql`, then `nexus/schema-011-magic-links.sql`. Apply to an isolated Neon staging branch **only**.
+`nexus/schema-010-jobs.sql`, then ordered migrations 011–014. Apply to an isolated Neon staging branch **only**.
 
 For Docker/Caddy, create mode-0600 file
 `deploy/secrets/magic_link_session_secret` with a cryptographically strong
@@ -76,7 +76,7 @@ Tests:
 
 ```bash
 node --test nexus/api/magic-auth.test.mjs nexus/api/ticketing.test.mjs
-# On disposable PostgreSQL after migrations 001–010:
+# On disposable PostgreSQL after migrations 001–014:
 psql -v ON_ERROR_STOP=1 -f nexus/tests/magic-recovery-integration.sql
 ```
 
@@ -85,3 +85,38 @@ MailScanner/preview testing, abuse-control review, privacy retention policy,
 refund/oversell/abandoned-reservation coordination with Zeffy, and accessible
 user testing. Email login eliminates the Google-account requirement for **new**
 individual conference attendees; it does not yet support guest group orders.
+
+## Stage 1 identity migration (014)
+
+Development only: no production installation is assumed. Apply ordered Nexus
+001–014 to a disposable database before running the SQL fixture above. Docker's
+CI migration runner includes 014; no runtime automatically applies migrations.
+Keep deployment gates off. PUBLIC_ORIGIN must be an exact HTTPS origin without
+credentials, path, query or fragment; login links and request origin must match it.
+
+014 creates a permanent random UUID subject per normalized email only on valid
+redemption, atomically with token consumption. Cookie-secret rotation invalidates
+old cookies but never changes identity. There is no identity lookup endpoint.
+Session storage may be a separate Durable Object, so token consumption and
+session creation cannot share a transaction. Encryption and token availability
+are checked first, and a revocable session is created **before** the SQL token
+is consumed. Session-store outages therefore leave the original valid link
+retryable. The database consumption remains one-use and transactional;
+concurrent redemption losers revoke their unused sessions and receive 401.
+An unexpected failure after successful consumption returns 503, attempts
+session revocation, and requires requesting a fresh link. Never restore a
+consumed token or claim sign-in succeeded after an uncertain response.
+Only confirmed absent/expired tokens return 401.
+
+For older identity-linked staging data, 014 deliberately refuses to proceed.
+Back up the isolated database and disable sign-in and registration. Either reset
+a disposable synthetic dataset, or prepare a separately reviewed transactional
+migration: verify each legacy magic attendee's normalized email and issuer,
+assign one new UUID mapping per verified email, and update that attendee's subject
+in place while preserving its attendee ID and all enrollment/payment references.
+Do not merge Google identities, infer ownership from an unverified request, or
+copy one subject across emails. Resolve conflicting records manually. Install
+the 014 table/function and mappings in that same reviewed transaction instead of
+bypassing the guard on an active database. Invalidate old sessions/outstanding
+links, verify references and isolation, then test fresh sign-in before enabling
+any gate. This procedure has not been executed against staging or Neon.

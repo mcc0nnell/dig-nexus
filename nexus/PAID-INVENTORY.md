@@ -43,8 +43,11 @@ promotion behavior is unchanged.
 - Every new `pending_payment` record automatically schedules a deduplicated,
   fenced `conference_intent_expiry` job in the existing PostgreSQL job queue.
   The **optional** Docker `jobs` profile remains disabled. When the operator
-  enables it and verifies the lease worker, expired intents are cancelled;
-  they did not consume seats before expiry, so the site remains safe even if
+  selects the profile, independently sets `NEXUS_JOB_WORKER_ENABLED=true`,
+  and verifies the lease worker under explicit operator authorization, expired
+  intents are cancelled. Compose retains `NEXUS_JOB_WORKER_ENABLED: "false"`;
+  selecting the profile alone does not enable processing. These intents
+  did not consume seats before expiry, so the site remains safe even if
   worker processing is delayed. An expired intent cannot receive a checkout
   link or admission without a new approved flow.
 - Paid webhook reconciliation, attendee cancellations and event registrations

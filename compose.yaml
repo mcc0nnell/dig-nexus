@@ -66,6 +66,8 @@ services:
       start_period: 15s
 
   jobs:
+    # Selecting this profile alone does not authorize or enable job execution.
+    # An authorized operator must independently set NEXUS_JOB_WORKER_ENABLED=true.
     profiles: ["jobs"]
     image: ${NEXUS_IMAGE:-dig-nexus:local}
     user: "${NEXUS_UID:?Set a non-root numeric UID}:${NEXUS_GID:?Set a non-root numeric GID}"

@@ -1,6 +1,6 @@
 # DIG Nexus — implementation status
 
-**Last reviewed: October 13, 2026. Development and synthetic validation, not a production launch.**
+**Last reviewed: November 18, 2026. Development and synthetic validation, not a production launch.**
 
 **Selected stack:** Docker Compose + non-root Node 22 API + Caddy HTTPS + Neon PostgreSQL. WordPress can link to the Nexus portal. Google OIDC, independent NTC magic sign-in, Zeffy reconciliation and MailerSend are optional provider integrations with separate credentials and launch gates. Neither an external CRM nor Cloudflare is a runtime requirement. The static [GitHub Pages demo](../demo/offline.html) is offline and cannot sign in, receive money, issue tickets or send email.
 
@@ -36,6 +36,7 @@ nexus/schema-010-jobs.sql
 nexus/schema-011-magic-links.sql
 nexus/schema-012-constituents.sql
 nexus/schema-013-paid-inventory.sql
+nexus/schema-014-magic-identities.sql
 newsletter/schema.sql
 newsletter/schema-002-unsubscribe.sql
 newsletter/schema-003-operations.sql

@@ -1,3 +1,4 @@
+import {statusPage} from './status-page.mjs';
 import {associationOpsRequest} from "./association-ops.mjs";
 import {associationPage,associationClient,associationStyle} from "./association-page.mjs";
 import {unsubscribeRequest} from "./newsletter-unsubscribe.mjs";
@@ -25,7 +26,7 @@ export default {
   if(url.pathname==='/portal'&&request.method==='GET')return portalPage();
   if(url.pathname==='/association'&&request.method==='GET')
    return env.CONSTITUENTS_ENABLED===true||env.CONSTITUENTS_ENABLED==='true'||env.CAMPAIGNS_ENABLED===true||env.CAMPAIGNS_ENABLED==='true'?
-    associationPage():json({error:'association_unavailable'},503);
+    associationPage():statusPage('Association workspace unavailable','This workspace is not enabled. Contact your DIG administrator for access guidance.',503);
   if(url.pathname==='/association-client.mjs'&&request.method==='GET')return associationClient();
   if(url.pathname==='/association.css'&&request.method==='GET')return associationStyle();
   if(url.pathname==='/portal-client.mjs'&&request.method==='GET')return portalClient();
@@ -38,15 +39,20 @@ export default {
   const agendaJson=url.pathname.match(/^\/api\/events\/([^/]+)\/agenda\/?$/);
   const agendaHtml=url.pathname.match(/^\/events\/([^/]+)\/?$/);
   if(agendaJson||agendaHtml) {
-   if(request.method!=="GET")return json({error:"method_not_allowed"},405);
+   const failure=(error,status)=>agendaJson?json({error},status):statusPage(
+    status===404?'Agenda not found':status===405?'Method not allowed':'Agenda temporarily unavailable',
+    status===404?'No published agenda is available at this address. Check the event link with the conference organizer.':
+    status===405?'Open the event link in your browser to view the agenda.':'Please try again later. Contact the conference organizer if you need schedule information now.',
+    status,status===405?{allow:'GET'}:{});
+   if(request.method!=="GET")return failure("method_not_allowed",405);
    const slug=(agendaJson||agendaHtml)[1];
    if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)||slug.length>80)
-    return json({error:"not_found"},404);
+    return failure("not_found",404);
    try {
     const db=env.agendaDb||(env.pgClient?createAgendaDb(env.pgClient):env.DATABASE_URL?createAgendaDb(await createNeonClient(env)):null);
-    if(!db)return json({error:"agenda_unavailable"},503);
+    if(!db)return failure("agenda_unavailable",503);
     const agenda=await db.getPublishedAgenda(slug);
-    if(!agenda)return json({error:"not_found"},404);
+    if(!agenda)return failure("not_found",404);
     if(agendaJson)return json({event:agenda},200);
     return new Response(renderAgendaPage(agenda),{status:200,headers:{
      "content-type":"text/html; charset=utf-8","cache-control":"no-store",
@@ -54,7 +60,7 @@ export default {
      "referrer-policy":"no-referrer",
      "content-security-policy":"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
     }});
-   }catch{return json({error:"agenda_unavailable"},503);}
+   }catch{return failure("agenda_unavailable",503);}
   }
   if(url.pathname==="/api/enroll")return requestMembership(request,env);
   const unsubscribe=await unsubscribeRequest(request,env,url.pathname);

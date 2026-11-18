@@ -59,6 +59,10 @@ test('logout requires exact same origin and portal avoids inline scripts',async(
  const portal=portalPage();
  assert.equal(portal.headers.get('content-security-policy').includes('unsafe-inline'),false);
  assert.ok((await portal.text()).includes('src="/portal-client.mjs"'));
+ const html=await portalPage().text();
+ assert.match(html,/Sign in to view your membership status/);
+ assert.match(html,/<noscript>/);
+ assert.doesNotMatch(html,/Checking your membership status/);
  assert.equal(portalClient().status,200);
 });
 test('Google callback consumes flow once and logout revokes copied session',async()=>{

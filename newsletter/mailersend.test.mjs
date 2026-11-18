@@ -21,6 +21,7 @@ test("valid approved recipient posts expected payload", async () => {
   const result=await sendNewsletter(env,msg,fetchMock);
   assert.equal(result.messageId,"fake-id");
   assert.equal(sent.url,"https://api.mailersend.com/v1/email");
+  assert.equal(sent.options.signal instanceof AbortSignal,true);
   assert.equal(JSON.parse(sent.options.body).to[0].email,"reader@example.test");
   assert.equal(JSON.parse(sent.options.body).list_unsubscribe,msg.unsubscribeUrl);
   assert.match(JSON.parse(sent.options.body).text,/Unsubscribe: https:/);

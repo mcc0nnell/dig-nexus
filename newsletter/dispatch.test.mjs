@@ -51,3 +51,17 @@ test('consent revoked between claim and provider call blocks the send',async()=>
  assert.deepEqual(await dispatchOne(env,{db,fetchImpl:async()=>{networkCalls++;throw Error('must not call')}}),{status:'suppressed'});
  assert.equal(networkCalls,0);assert.equal(acknowledgements,0);
 });
+test('boolean and string gates both work, but every one of five is mandatory',async()=>{
+ const gates=Object.keys(env).filter(k=>k.endsWith('ENABLED')||k.endsWith('READY')||k.endsWith('VERIFIED'));
+ for(const value of [true,'true']){
+  const config={...env,...Object.fromEntries(gates.map(k=>[k,value]))};
+  assert.deepEqual(await dispatchOne(config,{db:{claim:async()=>null,allowed:async()=>true,acknowledge:async()=>true}}),{status:'idle'});
+  for(const key of gates)for(const disabled of [false,'false',undefined])assert.deepEqual(await dispatchOne({...config,[key]:disabled}),{status:'disabled'});
+ }
+});
+test('boolean gates reach MailerSend and acknowledge only a mocked receipt',async()=>{
+ const config={...env};for(const key of Object.keys(config))if(config[key]==='true')config[key]=true;
+ let calls=0;
+ const result=await dispatchOne(config,{db:{claim:async()=>claim,allowed:async()=>true,acknowledge:async()=>true},fetchImpl:async()=>{calls++;return {ok:true,headers:{get:()=> 'synthetic-receipt'}};}});
+ assert.deepEqual(result,{status:'accepted'});assert.equal(calls,1);
+});

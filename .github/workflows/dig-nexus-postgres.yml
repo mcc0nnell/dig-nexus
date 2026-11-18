@@ -58,6 +58,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f nexus/schema-011-magic-links.sql
           psql -v ON_ERROR_STOP=1 -f nexus/schema-012-constituents.sql
           psql -v ON_ERROR_STOP=1 -f nexus/schema-013-paid-inventory.sql
+          psql -v ON_ERROR_STOP=1 -f nexus/schema-014-magic-identities.sql
           psql -v ON_ERROR_STOP=1 -f newsletter/schema.sql
           psql -v ON_ERROR_STOP=1 -f newsletter/schema-002-unsubscribe.sql
           psql -v ON_ERROR_STOP=1 -f newsletter/schema-003-operations.sql

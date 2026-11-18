@@ -104,17 +104,8 @@ git clone https://github.com/mcc0nnell/dig-nexus.git
 cd dig-nexus
 npm ci
 
-# Nexus and newsletter unit tests
-node --test nexus/*.test.mjs \
-  nexus/api/worker.test.mjs \
-  nexus/api/registration.test.mjs \
-  nexus/api/registration-http.test.mjs \
-  nexus/api/registration-db.test.mjs \
-  nexus/api/oidc.test.mjs \
-  nexus/api/database.test.mjs \
-  nexus/api/member-http.test.mjs \
-  nexus/api/google-auth.test.mjs \
-  newsletter/*.test.mjs
+# All Node-compatible Nexus and newsletter tests (Deno has a separate CI job)
+node --test $(find nexus newsletter -type f -name '*.test.mjs'   ! -name '*.deno.test.mjs' | sort)
 
 # Offline demo: static contract + real Chromium interactions and axe rules
 node --test demo/*.test.cjs
@@ -126,7 +117,7 @@ node --test nexus/cloud-run/*.test.mjs nexus/docker/*.test.mjs
 docker build -t dig-nexus:local .
 ```
 
-Additional checks run in GitHub Actions: Deno compatibility, PostgreSQL 17 schemas through Nexus migration 013 and newsletter migration 004 (including synthetic concurrency), a Chromium/axe API accessibility suite, and Docker release-signing checks. The Pages workflow independently validates its offline JavaScript and browser walkthroughs before publishing. Older CI jobs still verify historical code but are not Nexus deployment gates.
+Additional checks run in GitHub Actions: Deno compatibility, PostgreSQL 17 schemas through Nexus migration 014 and newsletter migration 004 (including synthetic concurrency), a Chromium/axe API accessibility suite, and Docker release-signing checks. The Pages workflow independently validates its offline JavaScript and browser walkthroughs before publishing. Older CI jobs still verify historical code but are not Nexus deployment gates.
 
 **Do not run schema files against a production database to “try it out.”** Follow the ordered migrations and disposable-branch guidance in [registration deployment](nexus/REGISTRATION-DEPLOYMENT.md).
 

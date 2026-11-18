@@ -1,3 +1,4 @@
+import {providerFetch} from './provider-fetch.mjs';
 const enc=new TextEncoder();
 const hex=b=>Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -16,10 +17,10 @@ export async function verifyZeffySignature(raw,signature,secret,now=Date.now()){
 const uuid=s=>typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 export async function fetchZeffyPayment(env,paymentId,fetchImpl=fetch){
  if(!uuid(paymentId)||!env.ZEFFY_API_KEY)throw Error('Zeffy unavailable');
- const r=await fetchImpl('https://api.zeffy.com/api/v1/payments/'+encodeURIComponent(paymentId),{
-  headers:{authorization:'Bearer '+env.ZEFFY_API_KEY,accept:'application/json'},redirect:'error'});
+ const r=await providerFetch(fetchImpl,'https://api.zeffy.com/api/v1/payments/'+encodeURIComponent(paymentId),{
+  headers:{authorization:'Bearer '+env.ZEFFY_API_KEY,accept:'application/json'},redirect:'error'},async r=>({ok:r.ok,data:r.ok?await r.json():null}));
  if(!r.ok)throw Error('Zeffy payment lookup unavailable');
- const p=await r.json();
+ const p=r.data;
  if(p.id!==paymentId||p.object!=='payment')throw Error('Invalid Zeffy payment');
  return p;
 }
@@ -42,7 +43,7 @@ export async function sendTransactionEmail(env,job,fetchImpl=fetch){
   `Registration received for ${job.eventTitle}. Reference: ${job.confirmationReference}. Your account shows your latest registration status.`;
  const body={from:{email:env.MAILERSEND_FROM_EMAIL,name:env.MAILERSEND_FROM_NAME||'Deaf in Government'},
   to:[{email:job.email}],subject,text:message,html:`<p>${escape(message)}</p>`,tags:['dig-ntc-transactional']};
- const r=await fetchImpl('https://api.mailersend.com/v1/email',{method:'POST',headers:{authorization:'Bearer '+env.MAILERSEND_API_TOKEN,'content-type':'application/json'},body:JSON.stringify(body)});
+ const r=await providerFetch(fetchImpl,'https://api.mailersend.com/v1/email',{method:'POST',headers:{authorization:'Bearer '+env.MAILERSEND_API_TOKEN,'content-type':'application/json'},body:JSON.stringify(body),redirect:'error'});
  const id=r.headers.get('x-message-id');
  if(r.status!==202||!id)return {accepted:false};
  return {accepted:true,messageId:id};

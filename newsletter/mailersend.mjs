@@ -1,10 +1,11 @@
+import {providerFetch} from '../nexus/api/provider-fetch.mjs';
 /**
  * MailerSend delivery adapter for DIG Nexus.
  * Never call directly from a browser. No sends without explicit enabled flag.
  * Expects a validated, opted-in recipient supplied by the queue processor.
  */
 export async function sendNewsletter(env, message, fetchImpl = fetch) {
-  if (env.DIG_NEWSLETTER_SEND_ENABLED !== "true") throw new Error("Newsletter sending disabled");
+  if ((env.DIG_NEWSLETTER_SEND_ENABLED !== "true" && env.DIG_NEWSLETTER_SEND_ENABLED !== true)) throw new Error("Newsletter sending disabled");
   if (!env.MAILERSEND_API_TOKEN || !env.MAILERSEND_FROM_EMAIL) throw new Error("MailerSend configuration missing");
   if (!message?.approved || !message?.consentVerified || message?.suppressed) throw new Error("Recipient not authorized");
   if (!message?.email || !message?.subject || !message?.text || !message?.html || !message?.unsubscribeUrl) throw new Error("Incomplete email");
@@ -25,14 +26,14 @@ export async function sendNewsletter(env, message, fetchImpl = fetch) {
   };
   // MailerSend custom headers and unsubscribe support vary by plan.
   // Do not enable marketing campaigns until compliant unsubscribe headers are verified.
-  if (env.DIG_NEWSLETTER_MARKETING_READY !== "true") throw new Error("Marketing compliance gate disabled");
+  if ((env.DIG_NEWSLETTER_MARKETING_READY !== "true" && env.DIG_NEWSLETTER_MARKETING_READY !== true)) throw new Error("Marketing compliance gate disabled");
   // MailerSend's custom List-Unsubscribe API parameter requires a supported plan.
   // Provider adds List-Unsubscribe-Post automatically for one-click HTTPS.
   // Do not assume all MailerSend accounts have this feature.
-  if (env.DIG_NEWSLETTER_ONE_CLICK_VERIFIED !== "true" ||
-      env.NEWSLETTER_UNSUBSCRIBE_ENABLED !== "true")
+  if ((env.DIG_NEWSLETTER_ONE_CLICK_VERIFIED !== "true" && env.DIG_NEWSLETTER_ONE_CLICK_VERIFIED !== true) ||
+      (env.NEWSLETTER_UNSUBSCRIBE_ENABLED !== "true" && env.NEWSLETTER_UNSUBSCRIBE_ENABLED !== true))
     throw new Error("Verified one-click unsubscribe and endpoint are required");
-  const response = await fetchImpl("https://api.mailersend.com/v1/email", {
+  const response = await providerFetch(fetchImpl,"https://api.mailersend.com/v1/email", {
     method: "POST",
     headers: { "Authorization": "Bearer " + env.MAILERSEND_API_TOKEN, "Content-Type": "application/json" },
     body: JSON.stringify(body)

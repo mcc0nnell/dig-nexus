@@ -3,6 +3,8 @@ export function createMagicDb(client){
  const one=async(q,p)=>{const r=await client.query(q,p);return r.rows?.[0]?.value??null;};
  return {
   issue:(hash,email,event)=>one('SELECT nexus_magic_issue($1,$2,$3) AS value',[hash,email,event]),
+  // Migration 014 atomically returns the permanent subject with the consumed token.
+  available:hash=>one('SELECT nexus_magic_available($1) AS value',[hash]),
   consume:hash=>one('SELECT nexus_magic_consume($1) AS value',[hash]),
   revoke:hash=>one('SELECT nexus_magic_revoke($1) AS value',[hash])
  };
